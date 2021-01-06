@@ -1,16 +1,16 @@
 IDIR=include
 CC=gcc
-CFLAGS=-I$(IDIR)
+CFLAGS=`sdl2-config --libs --cflags` --std=c99 -Wall -I$(IDIR)
 
 ODIR=out
 SRC=src
 
-LIBS=-lm
+LIBS=-lm -lSDL2_image
 
-_DEPS=tensor.h
+_DEPS=tensor.h mnist.h plot.h
 DEPS=$(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ=tensor.o main.o
+_OBJ=tensor.o mnist.o plot.o main.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: dirs mnist

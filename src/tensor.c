@@ -3,21 +3,31 @@
 #include <string.h>
 #include "tensor.h"
 
-/* Utility functions */
-static unsigned int array_prod(unsigned int*, unsigned int);
-static float* slice(float*, unsigned int, unsigned int);
-static float* f32copy(float* src, unsigned int n);
-static unsigned int* u32copy(unsigned int* src, unsigned int n);
-static unsigned int* build_indexer(
-        unsigned int i, unsigned int n_dims, 
-        unsigned int* shape);
 
-tensor_t* tensor_new(
-        float* values, 
-        unsigned int* shape, unsigned int n_dims) 
+#define PRINT_ARRAY(a, l, f, lead, trail, sep) \
+    printf(lead);                \
+    for (int kk = 0; kk < l; kk++) \
+        if (kk < l - 1)          \
+            printf(f sep, a[kk]);   \
+        else                    \
+            printf(f, a[kk]);    \
+    printf(trail);
+
+/* Utility functions */
+static uint8_t check_equal_shape(const tensor_t* t1, const tensor_t* t2);
+static uint32_t array_prod(uint32_t*, uint32_t);
+static float* slice(float*, uint32_t, uint32_t);
+static float* f32copy(float* src, uint32_t n);
+static uint32_t* u32copy(uint32_t* src, uint32_t n);
+static uint32_t* build_indexer(uint32_t i, uint32_t n_dims, uint32_t* shape);
+
+tensor_t* tensor_new(float* values, uint32_t* shape, uint32_t n_dims) 
 {
     tensor_t* t = (tensor_t*)malloc(sizeof(tensor_t));
-    t->shape = shape;
+    if (n_dims == 0)
+        t->shape = NULL;
+    else
+        t->shape = shape;
     t->values = values;
     t->n_dims = n_dims;
     return t;
@@ -25,9 +35,9 @@ tensor_t* tensor_new(
 
 tensor_t* tensor_arange(
         float start, float end, float step, 
-        unsigned int* shape, unsigned int n_dims)
+        uint32_t* shape, uint32_t n_dims)
 {
-    unsigned int nels = (unsigned int)((end - start) / step);
+    uint32_t nels = (uint32_t)((end - start) / step);
     float* values = (float*)malloc(sizeof(float) * nels);
     int i = 0;
     for (float v = start; v < end; v += step)
@@ -48,16 +58,17 @@ tensor_t* tensor_copy(const tensor_t* t)
 void tensor_clean(tensor_t* t)
 {
     free(t->values);
-    free(t->shape);
+    // if (t->n_dims > 0)
+        // free(t->shape);
     free(t);
 }
 
-tensor_t* tensor_index(const tensor_t* t, unsigned int* index, unsigned int n_indices)
+tensor_t* tensor_index(const tensor_t* t, uint32_t* index, uint32_t n_indices)
 {
     tensor_t* result;
     tensor_t* gc;
 
-    unsigned int next_nels = 0;
+    uint32_t next_nels = 0;
     if (n_indices > t->n_dims)
         return NULL;
 
@@ -68,6 +79,7 @@ tensor_t* tensor_index(const tensor_t* t, unsigned int* index, unsigned int n_in
             next_nels = array_prod(&t->shape[i + 1], t->n_dims - i - 1);
         else
             next_nels = 1;
+
         gc = result;
         result = tensor_new(
                 slice(gc->values, 
@@ -80,7 +92,7 @@ tensor_t* tensor_index(const tensor_t* t, unsigned int* index, unsigned int n_in
     return result;
 }
 
-unsigned int tensor_numel(const tensor_t* t)
+uint32_t tensor_numel(const tensor_t* t)
 {
     if (t->n_dims == 0)
         return 1;
@@ -90,16 +102,19 @@ unsigned int tensor_numel(const tensor_t* t)
 
 void tensor_print(const tensor_t* t)
 {
-    unsigned int length = tensor_numel(t);
+    uint32_t length = tensor_numel(t);
     char leading_space[16] = "       ";
-    unsigned int* indexer;
-    unsigned int* prev_indexer = NULL;
+    char leading_brackets[16] = "";
+    char trailing_brackets[16] = "";
+
+    uint32_t* indexer;
+    uint32_t* prev_indexer = NULL;
 
     tensor_t* slice;
-    unsigned int slice_len;
+    uint32_t slice_len;
 
-    int new_group = 0;
-    int is_tensor = t->n_dims > 2;
+    uint8_t new_group = 0;
+    uint8_t is_tensor = t->n_dims > 2;
 
     printf("Tensor(");
 
@@ -108,12 +123,15 @@ void tensor_print(const tensor_t* t)
         printf("%.2f)\n", t->values[0]);
         return;
     }
-    
+
     for (int i = 0; i < (int)t->n_dims - 2; i++)
     {
-        printf("[");
-        strcat(leading_space, " ");
+        strcat(trailing_brackets, "]");
+        strcat(leading_brackets, "[");
     }
+
+    if (t->n_dims > 1)
+        printf("[%s", leading_brackets);
 
     for (int i = 0; i < length; i += t->shape[t->n_dims  - 1])
     {
@@ -124,21 +142,12 @@ void tensor_print(const tensor_t* t)
                         (prev_indexer[0] != indexer[0]);
 
         if (new_group)
-            printf("]\n\n%s[", leading_space);
+            printf("%s\n\n%s %s", 
+                    trailing_brackets, leading_space, leading_brackets);
         else if (i > 0)
             printf("\n%s ", leading_space);
-        else if (t->n_dims > 1)
-            printf("[");
 
-        printf("[");
-
-        for (int j = 0; j < slice_len; j++)
-            if (j < slice_len - 1)
-                printf("%.2f ", slice->values[j]);
-            else
-                printf("%.2f", slice->values[j]);
-
-        printf("]");
+        PRINT_ARRAY(slice->values, slice_len, "%6.2f", "[", "]", " ");
 
         free(prev_indexer);
         prev_indexer = indexer;
@@ -146,10 +155,8 @@ void tensor_print(const tensor_t* t)
     }
     free(prev_indexer);
 
-    for (int i = 0; i < t->n_dims - 1; i++)
-    {
-        printf("]");
-    }
+    if (t->n_dims > 1)
+        printf("%s]", trailing_brackets);
 
     printf(")\n");
 }
@@ -157,70 +164,173 @@ void tensor_print(const tensor_t* t)
 void tensor_specs(const tensor_t* t)
 {
     printf("Tensor(shape=");
-
-    /* Print shape */
-    printf("(");
-    for (int i = 0; i < t->n_dims; i++)
-        if (i < t->n_dims - 1)
-            printf("%d, ", t->shape[i]);
-        else
-            printf("%d", t->shape[i]);
-    printf("), ");
-
-    printf("ndims=%d)\n", t->n_dims);
+    PRINT_ARRAY(t->shape, t->n_dims, "%d", "(", ")", ", ");
+    printf(", ndims=%d)\n", t->n_dims);
 }
 
-static unsigned int array_prod(unsigned int* array, unsigned int n_elems)
+
+tensor_t* tensor_neg(const tensor_t* t)
 {
-    int res = 1;
-    for (int i = 0; i < n_elems; i++)
-        res *= array[i];
+    tensor_t* res = tensor_copy(t);
+    uint32_t nels = tensor_numel(t);
+    for (int i = 0; i < nels; i++)
+        res->values[i] = -1 * t->values[i];
+
     return res;
 }
 
-static float* slice(float* old_values, unsigned int start, unsigned int size)
+tensor_t* tensor_add(const tensor_t* t1, const tensor_t* t2)
+{
+    if(!check_equal_shape(t1, t2))
+        return NULL;
+
+    tensor_t* res = tensor_copy(t1);
+    uint32_t nels = tensor_numel(t1);
+
+    for (int i = 0; i < nels; i++)
+        res->values[i] = t1->values[i] + t2->values[i];
+
+    return res;
+}
+
+tensor_t* tensor_add_scalar(const tensor_t* t, float scalar)
+{
+    tensor_t* res = tensor_copy(t);
+    uint32_t nels = tensor_numel(t);
+
+    for (int i = 0; i < nels; i++)
+        res->values[i] = t->values[i] + scalar;
+
+    return res;
+}
+
+
+tensor_t* tensor_sub(const tensor_t* t1, const tensor_t* t2)
+{
+    tensor_t* neg_t2 = tensor_neg(t2);
+    tensor_t* res = tensor_add(t1, neg_t2);
+    tensor_clean(neg_t2);
+    return res;
+}
+
+
+tensor_t* tensor_sub_scalar(const tensor_t* t, float scalar)
+{
+    scalar = -1 * scalar;
+    return tensor_add_scalar(t, scalar);
+}
+
+tensor_t* tensor_mul(const tensor_t* t1, const tensor_t* t2)
+{
+    if(!check_equal_shape(t1, t2))
+        return NULL;
+
+    tensor_t* res = tensor_copy(t1);
+    uint32_t nels = tensor_numel(t1);
+
+    for (int i = 0; i < nels; i++)
+        res->values[i] = t1->values[i] * t2->values[i];
+
+    return res;
+}
+
+tensor_t* tensor_mul_scalar(const tensor_t* t, float scalar)
+{
+    tensor_t* res = tensor_copy(t);
+    uint32_t nels = tensor_numel(t);
+
+    for (int i = 0; i < nels; i++)
+        res->values[i] = t->values[i] * scalar;
+
+    return res;
+}
+
+tensor_t* tensor_div(const tensor_t* t1, const tensor_t* t2)
+{
+    if(!check_equal_shape(t1, t2))
+        return NULL;
+
+    tensor_t* res = tensor_copy(t1);
+    uint32_t nels = tensor_numel(t1);
+
+    for (int i = 0; i < nels; i++)
+        res->values[i] = t1->values[i] * t2->values[i];
+
+    return res;
+}
+
+tensor_t* tensor_div_scalar(const tensor_t* t, float scalar)
+{
+    tensor_t* res = tensor_copy(t);
+    uint32_t nels = tensor_numel(t);
+
+    for (int i = 0; i < nels; i++)
+        res->values[i] = t->values[i] / scalar;
+
+    return res;
+}
+
+
+float* slice(float* old_values, uint32_t start, uint32_t size)
 {
     float* new_values = (float*)malloc(sizeof(float) * size);
     for (int i = 0; i < size; i++)
-    {
         new_values[i] = old_values[start + i];
-    }
+
     return new_values;
 }
 
-static float* f32copy(float* src, unsigned int n)
+float* f32copy(float* src, uint32_t n)
 {
     float* new_values = (float*)malloc(sizeof(float) * n);
     for (int i = 0; i < n; i++)
-    {
         new_values[i] = src[i];
-    }
+
     return new_values;
 }
 
-static unsigned int* u32copy(unsigned int* src, unsigned int n)
+uint32_t* u32copy(uint32_t* src, uint32_t n)
 {
-    unsigned int* new_values = (unsigned int*)malloc(sizeof(unsigned int) * n);
+    uint32_t* new_values = (uint32_t*)malloc(sizeof(uint32_t) * n);
     for (int i = 0; i < n; i++)
-    {
         new_values[i] = src[i];
-    }
+
     return new_values;
 }
 
-static unsigned int* build_indexer(
-        unsigned int i, unsigned int n_dims, 
-        unsigned int* shape)
+uint32_t* build_indexer(uint32_t i, uint32_t n_dims, uint32_t* shape)
 {
-    unsigned int* indexer = (unsigned int*)malloc(
-            sizeof(unsigned int) * (n_dims - 1));
+    uint32_t* indexer = (uint32_t*)malloc(
+            sizeof(uint32_t) * (n_dims - 1));
 
     for (int j = 0; j < n_dims - 1; j++) 
     {
-        indexer[j] = (unsigned int)(i / array_prod(&shape[j + 1], n_dims - j - 1));
+        indexer[j] = (uint32_t)(i / array_prod(&shape[j + 1], n_dims - j - 1));
         i -= indexer[j] * array_prod(&shape[j + 1], n_dims - j - 1);
     }
 
     return indexer;
+}
+
+uint32_t array_prod(uint32_t* array, uint32_t n_elems)
+{
+    int res = 1;
+    for (int i = 0; i < n_elems; i++)
+        res *= array[i];
+
+    return res;
+}
+
+
+uint8_t check_equal_shape(const tensor_t* t1, const tensor_t* t2)
+{
+    if (t1->n_dims != t2->n_dims)
+        return 0;
+
+    for (int i = 0; i < t1->n_dims; i++)
+        if (t1->shape[i] != t2->shape[i])
+            return 0;
+
+    return 1;
 }
 
