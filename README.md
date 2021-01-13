@@ -1,4 +1,4 @@
-# MNIST from Scratch 🧠🔢:w
+# MNIST from Scratch 🧠🔢
 
 This repository implements an end2end Neural Network (forward and backward) in c.
 
@@ -8,7 +8,9 @@ The goal is to train a NN able to recognize digits.
 
 Just navigate inside data directory and run:
 
+```
 $ sh download.sh
+```
 
 ## Tensor module
 
