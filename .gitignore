@@ -1,4 +1,7 @@
 out/
-data/
+
+/data/*
+!/data/download.sh
+
 mnist
 *.swp
