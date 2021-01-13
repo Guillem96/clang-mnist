@@ -1,4 +1,4 @@
-# MNIST from Scratch 🧠🔢:w
+# MNIST from Scratch 🧠🔢
 
 This repository implements an end2end Neural Network (forward and backward) in c.
 
