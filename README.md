@@ -8,7 +8,9 @@ The goal is to train a NN able to recognize digits.
 
 Just navigate inside data directory and run:
 
+```
 $ sh download.sh
+```
 
 ## Tensor module
 
