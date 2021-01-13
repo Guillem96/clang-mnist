@@ -104,7 +104,81 @@ mnist_example_t* mnist_sample(mnist_t* ds, uint8_t flat)
 
 mnist_example_t* mnist_batch(mnist_t* ds, int n_samples, uint8_t flat)
 {
-    return NULL;
+    int rand_idx;
+    
+    /* Sample Image variables */
+    int n_bytes = ds->images->rows * ds->images->cols;
+    int base_idx;
+    int n_dims = flat ? 2 : 3;
+    uint32_t* shape = (uint32_t*)malloc(sizeof(uint32_t) * n_dims);
+    float* values = (float*)malloc(sizeof(float) * n_bytes * n_samples);
+
+    /* Sample label variables */
+    float* label_values = (float*)malloc(sizeof(float) * n_samples);
+    uint32_t* label_shape = (uint32_t*)malloc(sizeof(uint32_t));
+    mnist_example_t* result = (mnist_example_t*)malloc(sizeof(mnist_example_t));
+    label_shape[0] = n_samples;
+
+    if (flat) 
+    {
+        shape[0] = n_samples;
+        shape[1] = n_bytes;
+    } 
+    else
+    {
+        shape[0] = n_samples;
+        shape[1] = ds->images->rows;
+        shape[2] = ds->images->cols;
+    }
+
+    for (int i = 0; i < n_samples; i++)
+    {
+        rand_idx = rand() % ds->images->n_images;
+        base_idx = n_bytes * rand_idx;
+        label_values[i] = (float)ds->labels->labels[rand_idx];
+        for (int j = 0; j < n_bytes; j++)
+            values[i * n_bytes + j] = (float)ds->images->pixels[base_idx + j];
+    }
+
+    result->image = tensor_new(values, shape, n_dims);
+    result->label = tensor_new(label_values, label_shape, 1);
+    return result;
+}
+
+mnist_example_t* mnist_as_tensor(mnist_t* ds, uint8_t flat)
+{
+    int n_samples = ds->images->n_images;
+    int n_bytes = ds->images->rows * ds->images->cols;
+    int n_dims = flat ? 2 : 3;
+
+    uint32_t* shape = (uint32_t*)malloc(sizeof(uint32_t) * n_dims);
+    float* values = (float*)malloc(sizeof(float) * n_bytes * n_samples);
+    float* label_values = (float*)malloc(sizeof(float) * n_samples);
+    uint32_t* label_shape = (uint32_t*)malloc(sizeof(uint32_t));
+    mnist_example_t* result = (mnist_example_t*)malloc(sizeof(mnist_example_t));
+    label_shape[0] = n_samples;
+
+    if (flat)
+    {
+        shape[0] = n_samples;
+        shape[1] = n_bytes;
+    } 
+    else
+    {
+        shape[0] = n_samples;
+        shape[1] = ds->images->rows;
+        shape[2] = ds->images->cols;
+    }
+    
+    for (int i = 0; i < n_samples * n_bytes; i++)
+        values[i] = (float)ds->images->pixels[i];
+
+    for (int i = 0; i < n_samples; i++)
+        label_values[i] = (float)ds->labels->labels[i];
+
+    result->image = tensor_new(values, shape, n_dims);
+    result->label = tensor_new(label_values, label_shape, 1);
+    return result;
 }
 
 void mnist_clean(mnist_t* ds)

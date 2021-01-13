@@ -7,10 +7,10 @@ SRC=src
 
 LIBS=-lm -lSDL2_image
 
-_DEPS=tensor.h mnist.h plot.h
+_DEPS=tensor.h tensor_pool.h mnist.h plot.h nn.h
 DEPS=$(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ=tensor.o mnist.o plot.o main.o
+_OBJ=tensor.o tensor_pool.o mnist.o plot.o nn.o main.o
 OBJ=$(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: dirs mnist

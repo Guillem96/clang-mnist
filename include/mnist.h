@@ -35,7 +35,7 @@ typedef struct
 mnist_t* mnist_read(const char* images_fname, const char* labels_fname);
 mnist_example_t* mnist_sample(mnist_t* ds, uint8_t flat);
 mnist_example_t* mnist_batch(mnist_t* ds, int n_samples, uint8_t flat);
-
+mnist_example_t* mnist_as_tensor(mnist_t* ds, uint8_t flat);
 void mnist_clean(mnist_t* ds);
 
 #endif
