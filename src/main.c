@@ -2,6 +2,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "tensor.h"
 #include "tensor_pool.h"
@@ -26,6 +27,8 @@ typedef struct
     float loss;
     tensor_t* predictions;
 } train_res_t;
+
+static void plot_grid(mnist_t* ds, int h, int w);
 
 static tensor_t* update_parameter(const tensor_t* param, const tensor_t* grad, float lr);
 
@@ -71,6 +74,9 @@ int main(int argc, char** argv)
     /* Load the train and test data */
     ds = mnist_read(TRAIN_IMAGES, TRAIN_LABELS);
     test_ds = mnist_read(TEST_IMAGES, TEST_LABELS);
+
+    printf("Press any key...\n");
+    plot_grid(ds, 5, 5);
 
     for (int step = 0; step < 250; step++)
     {
@@ -251,4 +257,34 @@ static tensor_t* layer_init(uint32_t* shape, uint32_t n_dims)
     return res;
 }
 
+void plot_grid(mnist_t* ds, int h, int w)
+{
+    char title[256];
+    char tmp[16];
+
+    mnist_example_t* sample = mnist_batch(ds, h * w, 0);
+    int n_bytes = ds->images->cols * ds->images->rows;
+    uint32_t shape[] = {h * ds->images->rows, w * ds->images->cols};
+    tensor_t* grid = tensor_zeros(shape, 2);
+
+    for (int i = 0; i < h; i++)
+        for (int j = 0; j < w; j++)
+            for (int k = 0; k < n_bytes; k++)
+                grid->values[(i * ds->images->rows + (int)(k / ds->images->rows)) * grid->shape[1] + 
+                              j * ds->images->cols + (int)(k % ds->images->cols)] = sample->image->values[(i * w + j) * n_bytes + k];
+    
+    sprintf(title, "Grid %dx%d: [", h, w);
+    for (int i = 0; i < h * w; i++)
+    {
+        sprintf(tmp, "%d  ", (int)sample->label->values[i]);
+        strcat(title, tmp);
+    }
+    strcat(title, "]");
+
+    imshow(grid, title);
+
+    tensor_clean(grid);
+    tensor_clean(sample->image);
+    tensor_clean(sample->label);
+}
 

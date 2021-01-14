@@ -65,3 +65,5 @@ mnist_clean(ds);
 tensor_clean(sample->image);
 tensor_clean(sample->label);
 ```
+
+![MNIST grid](img/grid.PNG)
